@@ -83,7 +83,8 @@ Pengolahan citra digital tekstur
 Proyek ini terinspirasi dari penelitian klasifikasi kematangan buah berbasis citra.
 
 ## 🙋‍♂️ Kontributor
-Angga Putra Pratama – Developer, Dataset, GUI, Dokumentasi
+Angga Putra Pratama – Developer, GUI, Dokumentasi
+Kelompok 5 - Dataset
 
 
 ## 📌 Lisensi
