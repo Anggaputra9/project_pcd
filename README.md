@@ -21,12 +21,12 @@ Proyek ini bertujuan untuk mendeteksi tingkat kematangan buah pisang (mentah/mat
 
 project_pcd/
 ├── dataset/
-│ ├── train/
-│ │ ├── mentah/
-│ │ └── matang/
-│ └── test/
-│ ├── mentah/
-│ └── matang/
+│   ├── train/
+│   │   ├── mentah/
+│   │   └── matang/
+│   └── test/
+│       ├── mentah/
+│       └── matang/
 ├── train_model.py
 ├── predict.py
 ├── gui_app.py
