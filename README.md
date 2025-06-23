@@ -18,7 +18,7 @@ Proyek ini bertujuan untuk mendeteksi tingkat kematangan buah pisang (mentah/mat
 ---
 
 ## 📁 Struktur Folder
-project_pcd/
+```project_pcd/
 ├── dataset/
 │ ├── train/
 │ │ ├── mentah/
@@ -31,6 +31,7 @@ project_pcd/
 ├── gui_app.py
 ├── knn_pisang_model.pkl
 └── README.md
+```
 
 
 ## 🧪 Ekstraksi Fitur
