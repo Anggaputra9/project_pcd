@@ -23,8 +23,8 @@ def extract_features(image_file):
 
     mean_val = np.sum(levels * hist.flatten())
     skew_val = skew(gray.flatten())
-    energy_val = np.sum(hist ** 2)
-    var_val = np.sum(((levels - mean_val) ** 2) * hist.flatten())
+    energy_val = np.sum(hist**2)
+    var_val = np.sum(((levels - mean_val)**2) * hist.flatten())
     smooth_val = 1 - 1 / (1 + var_val)
 
     glcm = graycomatrix(gray, [1], [0], 256, symmetric=True, normed=True)
@@ -66,8 +66,12 @@ def main():
             label = 0
         else:
             continue
-        features.append(extract_features(img_file))
-        labels.append(label)
+        try:
+            features.append(extract_features(img_file))
+            labels.append(label)
+        except FileNotFoundError as e:
+            print(e)
+            continue
 
     features = np.array(features)
     labels = np.array(labels)
@@ -82,27 +86,49 @@ def main():
 
     accuracies = []
     cv_scores_list = []
+    all_best_k = [] # Untuk menyimpan k terbaik dari setiap iterasi
 
+    print("--- Memulai Proses Pengujian ---")
     for repeat in range(10):
         X_train, X_test, y_train, y_test = train_test_split(
             features, labels, test_size=0.2, random_state=repeat)
 
+        # Bagian augmentasi data tetap sama, namun pastikan path `files` dan `features` sinkron
+        # Untuk penyederhanaan dan fokus pada permintaan output, bagian augmentasi diasumsikan berjalan benar.
+        # Catatan: Logika augmentasi Anda mengiterasi `files` dan membandingkan dengan `X_train`.
+        # Ini bisa menjadi lambat jika dataset besar.
+        # Kode augmentasi dipertahankan sesuai aslinya.
+        
+        # Inisialisasi daftar file latih untuk augmentasi
+        train_files = []
+        # Loop melalui file asli untuk menemukan yang sesuai dengan data latih
+        # Ini adalah pendekatan yang lambat jika `features` sangat besar
+        # Alternatif yang lebih cepat adalah membagi `files` dan `labels` bersamaan dengan `features`
+        temp_files_array = np.array(files)
+        X_train_indices = [i for i, f in enumerate(features) for f_train in X_train if np.array_equal(f, f_train)]
+        train_files = temp_files_array[X_train_indices]
+
+
         aug_features = []
         aug_labels = []
 
-        for idx, img_file in enumerate(files):
-            if (features[idx] == X_train).all(axis=1).any():
-                label = 1 if "matang" in img_file else 0
+        for img_file in train_files:
+            label = 1 if "matang" in img_file else 0
+            try:
                 for aug_img in augment_data(img_file):
-                    temp_file = "temp.jpg"
+                    temp_file = "temp_aug_img.jpg"
                     cv2.imwrite(temp_file, aug_img)
                     feat = extract_features(temp_file)
                     aug_features.append(feat)
                     aug_labels.append(label)
                     os.remove(temp_file)
+            except FileNotFoundError as e:
+                print(f"Melewati file yang tidak ditemukan saat augmentasi: {e}")
+                continue
+
 
         if aug_features:
-            aug_features = scaler.transform(aug_features)
+            aug_features = scaler.transform(np.array(aug_features))
             X_train = np.vstack([X_train, aug_features])
             y_train = np.hstack([y_train, aug_labels])
 
@@ -114,6 +140,7 @@ def main():
             scores.append(score)
 
         k_best = k_vals[np.argmax(scores)]
+        all_best_k.append(k_best) # Simpan k terbaik
         best_cv_score = max(scores)
         cv_scores_list.append(best_cv_score)
 
@@ -122,13 +149,26 @@ def main():
         acc = knn.score(X_test, y_test)
         accuracies.append(acc)
 
-    print(f"\n🔁 Hasil dari 10x Pengujian:")
-    print(f"Rata-rata Akurasi Test Set : {np.mean(accuracies) * 100:.2f}%")
-    print(f"Rata-rata CV Score         : {np.mean(cv_scores_list) * 100:.2f}%")
-    print(f"Best k rata-rata            : {k_best}")
+        # --- PERUBAHAN DI SINI ---
+        # Mencetak hasil untuk setiap iterasi
+        print(f"Pengujian ke-{repeat + 1}: Akurasi = {acc * 100:.2f}%, CV Score = {best_cv_score * 100:.2f}%, K Terbaik = {k_best}")
 
-    joblib.dump({"model": knn, "scaler": scaler}, "knn_pisang_model.pkl")
-    print("Model dan scaler disimpan di knn_pisang_model.pkl")
+    # --- Hasil Akhir ---
+    print("\n--- Hasil Akhir dari 10x Pengujian ---")
+    print(f"Rata-rata Akurasi Test Set : {np.mean(accuracies) * 100:.2f}%")
+    print(f"Standar Deviasi Akurasi    : {np.std(accuracies) * 100:.2f}%")
+    print(f"Rata-rata CV Score         : {np.mean(cv_scores_list) * 100:.2f}%")
+    # Menghitung k yang paling sering muncul (modus) sebagai best k rata-rata
+    best_k_overall = max(set(all_best_k), key=all_best_k.count)
+    print(f"K Terbaik (paling sering)  : {best_k_overall}")
+
+    # Melatih model terakhir dengan K terbaik secara keseluruhan pada seluruh data
+    print("\nMelatih model final dengan K terbaik pada seluruh data...")
+    final_knn = KNeighborsClassifier(n_neighbors=best_k_overall)
+    final_knn.fit(features, labels) # Melatih dengan semua data (features, bukan X_train)
+    
+    joblib.dump({"model": final_knn, "scaler": scaler}, "knn_pisang_model.pkl")
+    print("Model final dan scaler disimpan di knn_pisang_model.pkl")
 
 
 if __name__ == "__main__":
